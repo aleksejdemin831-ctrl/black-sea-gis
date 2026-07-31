@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ГИС Чёрного моря</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" media="print" onload="this.media='all'">
+    <script src="https://api-maps.yandex.ru/2.1/?apikey=19c9e669-debe-43ec-9e24-70f4c79af288&lang=ru_RU" type="text/javascript"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        :root{--bg:#0b1628;--bg2:#111d35;--card:#162040;--card2:#1a2744;--accent:#00b4d8;--warm:#ff6b35;--warm2:#f7931e;--text:#e0e6f0;--text2:#8899b0;--text3:#556680;--border:#1e3050;--border2:#253a5a;--success:#10b981;--danger:#ef4444;--glass:rgba(22,32,64,0.85);--radius:16px;--radius2:24px}
+        body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);overflow:hidden;height:100vh}
+        body.light{--bg:#f0f4f8;--bg2:#e2e8f0;--card:#ffffff;--card2:#f8fafc;--accent:#0284c7;--warm:#ea580c;--warm2:#d97706;--text:#1e293b;--text2:#475569;--text3:#94a3b8;--border:#cbd5e1;--border2:#94a3b8;--glass:rgba(255,255,255,0.9)}
+        .app{display:flex;flex-direction:column;height:100vh}
+        .header{background:linear-gradient(135deg,var(--card),var(--card2));padding:12px 24px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);z-index:100;min-height:56px}
+        .header h1{font-size:20px;font-weight:700;background:linear-gradient(135deg,var(--accent),var(--warm));-webkit-background-clip:text;background-clip:text;color:transparent;background-size:200% auto;animation:shimmer 3s linear infinite}
+        @keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
+        .header-controls{display:flex;gap:8px;align-items:center}
+        .hdr-btn{background:var(--bg2);border:1px solid var(--border);color:var(--text);padding:7px 14px;border-radius:30px;cursor:pointer;font-size:12px;transition:all .2s;display:flex;align-items:center;gap:5px;font-family:inherit}
+        .hdr-btn:hover{background:var(--accent);color:white;border-color:var(--accent)}
+        .main{display:flex;flex:1;overflow:hidden}
+        .sidebar{width:320px;background:var(--card);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;transition:width .3s}
+        .sidebar.hidden{width:0;overflow:hidden}
+        .sidebar-tabs{display:flex;border-bottom:1px solid var(--border);background:var(--bg2)}
+        .sidebar-tab{flex:1;padding:10px 4px;text-align:center;font-size:10px;font-weight:600;color:var(--text2);cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;display:flex;flex-direction:column;align-items:center;gap:3px}
+        .sidebar-tab:hover{color:var(--accent)}
+        .sidebar-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+        .sidebar-tab i{font-size:14px}
+        .sidebar-content{flex:1;overflow-y:auto;padding:14px}
+        .sidebar-content::-webkit-scrollbar{width:3px}
+        .sidebar-content::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+        .tab-panel{display:none;animation:fadeIn .25s}
+        @keyframes fadeIn{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+        .tab-panel.active{display:block}
+        .card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:14px}
+        .card-title{font-size:12px;font-weight:700;color:var(--accent);margin-bottom:10px;display:flex;align-items:center;gap:6px;text-transform:uppercase;letter-spacing:.5px}
+        .card-title i{font-size:14px}
+        .beach-list{max-height:calc(100vh - 300px);overflow-y:auto}
+        .beach-item{display:flex;justify-content:space-between;align-items:center;padding:9px 10px;border-radius:10px;cursor:pointer;border:1px solid transparent;transition:all .15s;margin-bottom:3px}
+        .beach-item:hover{background:rgba(0,180,216,.08);border-color:var(--border2)}
+        .beach-item.current{background:rgba(0,180,216,.12);border-color:var(--accent)}
+        .beach-name{font-size:12px;font-weight:600}
+        .beach-region{font-size:10px;color:var(--text2)}
+        .beach-temp{font-size:13px;font-weight:700;font-family:'Courier New',monospace}
+        .tp.warm{color:var(--warm)}.tp.mid{color:#eab308}.tp.cold{color:var(--accent)}
+        .search-box{width:100%;padding:8px 12px;border-radius:20px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:12px;margin-bottom:10px;outline:none;font-family:inherit}
+        .search-box:focus{border-color:var(--accent)}
+        .layer-toggle{display:flex;align-items:center;gap:6px;padding:5px 0;font-size:12px;cursor:pointer}
+        .layer-toggle input{accent-color:var(--accent)}
+        .depth-ctrl{display:flex;align-items:center;gap:6px;margin-top:6px}
+        .depth-ctrl input[type=range]{flex:1;accent-color:var(--accent)}
+        .depth-ctrl .val{font-size:11px;font-family:'Courier New',monospace;min-width:50px;text-align:right;color:var(--text2)}
+        .map-area{flex:1;display:flex;flex-direction:column;position:relative}
+        #map{width:100%;height:100%}
+        .map-layer-bar{position:absolute;top:10px;left:10px;z-index:50;display:flex;gap:4px}
+        .map-layer-bar button{background:var(--glass);backdrop-filter:blur(8px);border:1px solid var(--border);color:var(--text2);padding:5px 10px;border-radius:6px;cursor:pointer;font-size:10px;font-family:inherit;font-weight:500;transition:all .12s}
+        .map-layer-bar button:hover{border-color:var(--accent);color:var(--text)}
+        .map-layer-bar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+        .floating-temp{position:absolute;bottom:16px;right:16px;z-index:50;background:var(--glass);backdrop-filter:blur(8px);border:1px solid var(--border);border-radius:10px;padding:8px 16px;text-align:center}
+        .floating-temp .big{font-size:22px;font-weight:700;font-family:'Courier New',monospace;color:var(--warm)}
+        .floating-temp .sm{font-size:10px;color:var(--text2)}
+        .legend-bar{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);z-index:50;background:var(--glass);backdrop-filter:blur(8px);border:1px solid var(--border);border-radius:8px;padding:5px 14px;display:flex;gap:10px;font-size:10px;color:var(--text2);align-items:center}
+        .legend-bar .sq{width:10px;height:10px;border-radius:2px;display:inline-block;margin-right:3px;vertical-align:middle}
+        .graph-panel{position:absolute;bottom:0;left:0;right:0;z-index:50;background:var(--glass);backdrop-filter:blur(8px);border-top:1px solid var(--border);height:0;overflow:hidden;transition:height .3s}
+        .graph-panel.open{height:260px}
+        .graph-panel-header{display:flex;justify-content:space-between;align-items:center;padding:6px 14px;border-bottom:1px solid var(--border);cursor:pointer}
+        .graph-panel-header h4{font-size:12px;color:var(--accent);margin:0}
+        .graph-panel-close{background:none;border:none;color:var(--text2);cursor:pointer;font-size:16px}
+        #temperatureGraph{height:220px;width:100%}
+        .modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.6);z-index:10000;justify-content:center;align-items:center;backdrop-filter:blur(3px)}
+        .modal.show{display:flex}
+        .modal-body{background:var(--card);border:1px solid var(--border);border-radius:var(--radius2);width:90%;max-width:1000px;max-height:88vh;overflow-y:auto;padding:20px;position:relative;animation:slideUp .3s}
+        @keyframes slideUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+        .modal-close{position:absolute;top:10px;right:10px;background:var(--danger);border:none;color:#fff;width:28px;height:28px;border-radius:6px;cursor:pointer;font-size:16px;z-index:1;display:flex;align-items:center;justify-content:center}
+        .modal-title{font-size:18px;font-weight:700;color:var(--accent);margin-bottom:12px}
+        .modal-chart{height:380px;width:100%}
+        .compare-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+        .compare-select{width:100%;padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:12px;font-family:inherit}
+        .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+        .cal-h{font-size:9px;color:var(--text3);text-align:center;padding:4px 0;font-weight:600}
+        .cal-d{aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:4px;font-size:9px;cursor:pointer;border:1px solid transparent}
+        .cal-d.has{border-color:rgba(0,182,216,.2)}
+        .cal-d .ct{font-size:11px;font-weight:700;font-family:'Courier New',monospace}
+        .cal-nav{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+        .cal-nav button{background:none;border:none;color:var(--text2);cursor:pointer;padding:2px 8px;font-size:16px}
+        .cal-nav button:hover{color:var(--accent)}
+        .cal-nav span{font-size:13px;font-weight:600}
+        .desc-block{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:8px}
+        .desc-block h5{font-size:11px;color:var(--accent);margin-bottom:4px;font-weight:600}
+        .desc-block p{font-size:11px;color:var(--text2);line-height:1.5}
+        .tag{display:inline-block;background:rgba(0,182,212,.08);border:1px solid rgba(0,182,212,.2);padding:2px 7px;border-radius:4px;font-size:9px;color:var(--accent);margin:1px}
+        .src-card{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px}
+        .src-card h4{font-size:12px;font-weight:700;color:var(--accent);margin-bottom:4px;display:flex;align-items:center;gap:5px}
+        .src-card p{font-size:11px;color:var(--text2);line-height:1.6}
+        .star-pick{display:flex;gap:2px;margin:6px 0}
+        .star-pick i{color:var(--text3);cursor:pointer;font-size:16px;transition:color .15s}
+        .star-pick i.on{color:var(--warm2)}
+        textarea.inp{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:7px 10px;color:var(--text);font-size:11px;font-family:inherit;resize:vertical;min-height:50px;outline:none}
+        textarea.inp:focus{border-color:var(--accent)}
+        .btn{border:none;border-radius:8px;padding:7px 12px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s;width:100%;margin-bottom:6px}
+        .btn-accent{background:linear-gradient(135deg,var(--accent),#0077b6);color:#fff}
+        .btn-accent:hover{opacity:.85}
+        .btn-warm{background:linear-gradient(135deg,var(--warm),var(--warm2));color:#fff}
+        .btn-sm{width:auto;padding:4px 8px;font-size:9px}
+        .btn-secondary{background:var(--bg);border:1px solid var(--border);color:var(--text2)}
+        .export-btn{background:var(--bg);border:1px solid var(--border);color:var(--text2);padding:8px 16px;border-radius:8px;cursor:pointer;font-size:12px;font-family:inherit;transition:all .12s;display:flex;align-items:center;gap:6px;margin-bottom:8px}
+        .export-btn:hover{border-color:var(--accent);color:var(--accent);transform:translateY(-1px)}
+        .export-btn i{font-size:16px;color:var(--accent)}
+        .ranking-item{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:8px;background:var(--bg);margin-bottom:4px;cursor:pointer;border:1px solid transparent}
+        .ranking-item:nth-child(-n+3){border-color:var(--accent)}
+        .ranking-item:hover{border-color:var(--accent)}
+        .ranking-medal{font-size:16px;min-width:24px;text-align:center}
+        .ranking-bar{height:4px;background:var(--border);border-radius:2px;overflow:hidden;margin-top:3px}
+        .ranking-fill{height:100%;border-radius:2px;transition:width .5s}
+        .waves{position:fixed;bottom:0;left:0;width:200%;height:40px;z-index:1;pointer-events:none;opacity:.12}
+        .waves svg{width:100%;height:100%;animation:wave 8s linear infinite}
+        @keyframes wave{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+        @keyframes floatAward0{0%,100%{transform:translateY(0) rotate(0deg)}25%{transform:translateY(-3px) rotate(-3deg)}75%{transform:translateY(-3px) rotate(3deg)}}
+        @keyframes floatAward1{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+        @keyframes floatAward2{0%,100%{transform:translateY(0) rotate(0deg)}33%{transform:translateY(-4px) rotate(-2deg)}66%{transform:translateY(-2px) rotate(2deg)}}
+        .data-mode-badge{font-size:10px;padding:4px 10px;border-radius:20px;border:1px solid var(--border);background:var(--bg2);color:var(--text2);white-space:nowrap}
+        .data-mode-badge.demo{border-color:rgba(234,179,8,.4);color:#eab308;background:rgba(234,179,8,.08)}
+        .data-mode-badge.field{border-color:rgba(16,185,129,.4);color:var(--success);background:rgba(16,185,129,.08)}
+        .layer-info-bar{position:absolute;top:46px;left:10px;z-index:50;background:var(--glass);backdrop-filter:blur(8px);border:1px solid var(--border);border-radius:8px;padding:8px 14px;font-size:11px;color:var(--text2);max-width:calc(100% - 20px);box-shadow:0 4px 12px rgba(0,0,0,0.15);line-height:1.4}
+        .layer-info-bar b{color:var(--accent);font-weight:700;font-size:12px}
+        .beach-item.field-data{border-color:rgba(16,185,129,.25);background:rgba(16,185,129,.06)}
+        .beach-item.field-data .beach-name::after{content:'полевые';font-size:8px;margin-left:6px;padding:1px 5px;border-radius:4px;background:rgba(16,185,129,.15);color:var(--success);font-weight:700;text-transform:uppercase;vertical-align:middle}
+        .omega-field-tag{display:inline-block;font-size:9px;padding:2px 8px;border-radius:4px;background:rgba(16,185,129,.15);color:var(--success);border:1px solid rgba(16,185,129,.3);margin-bottom:8px;font-weight:600}
+        #omegaBayMap{width:100%;height:420px;border-radius:12px;border:1px solid var(--border);overflow:hidden}
+        .omega-station-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:6px;margin-top:10px;max-height:160px;overflow-y:auto}
+        .omega-st-item{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:6px 8px;font-size:10px}
+        .omega-st-item .st-num{font-weight:700;color:var(--accent)}
+        .omega-st-item .st-t{font-family:'Courier New',monospace;font-weight:700;color:var(--warm);font-size:13px}
+        @keyframes omegaPulse{0%,100%{box-shadow:0 0 0 0 rgba(16,185,129,.5)}50%{box-shadow:0 0 0 10px rgba(16,185,129,0)}}
+        
+        /* ===== МОБИЛЬНАЯ ВЕРСИЯ (Пункт 8) ===== */
+        @media(max-width:900px){
+            .main{flex-direction:column}
+            .sidebar{width:100%;max-height:0;overflow:hidden;border:none;transition:max-height .3s ease}
+            .sidebar.open{max-height:60vh;overflow-y:auto;border-right:none;border-bottom:1px solid var(--border)}
+            .modal-body{width:95%;padding:14px}
+            .modal-chart{height:300px}
+            #omegaBayMap{height:280px}
+            .header-controls{flex-wrap:wrap;gap:4px}
+            .hdr-btn{padding:10px 14px;font-size:12px;min-height:40px} /* Увеличенные кнопки */
+            .map-layer-bar button,.map-tools button{padding:10px 14px!important;font-size:12px!important;min-width:40px;min-height:40px} /* Увеличенные кнопки карты */
+            .floating-temp{bottom:10px;right:10px;padding:6px 12px}
+            .legend-bar{font-size:9px;padding:4px 10px;bottom:10px}
+            .btn{padding:10px 14px;font-size:12px;min-height:40px} /* Увеличенные кнопки в модалках */
+        }
+    </style>
+</head>
+<body>
+<div class="app">
+    <div class="header">
+        <h1><i class="fas fa-water"></i> ГИС Чёрного моря</h1>
+        <div class="header-controls">
+            <span class="data-mode-badge demo" id="dataModeBadge" title="Источник данных">Загрузка...</span>
+            <button class="hdr-btn" onclick="toggleTheme()" id="themeBtn"><i class="fas fa-circle-half-stroke"></i> Тема</button>
+            <button class="hdr-btn" onclick="open3D()"><i class="fas fa-cube"></i> 3D</button>
+            <button class="hdr-btn" onclick="showStatsTable()"><i class="fas fa-chart-bar"></i> Статистика</button>
+            <button class="hdr-btn" onclick="showCompare()"><i class="fas fa-code-compare"></i> Сравнение</button>
+            <button class="hdr-btn" onclick="showSources()"><i class="fas fa-circle-info"></i> Источники</button>
+        </div>
+    </div>
+    <div class="main">
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-tabs">
+                <div class="sidebar-tab active" onclick="switchTab(this,'beaches')"><i class="fas fa-umbrella-beach"></i><span>Пляжи</span></div>
+                <div class="sidebar-tab" onclick="switchTab(this,'layers')"><i class="fas fa-layer-group"></i><span>Слои</span></div>
+                <div class="sidebar-tab" onclick="switchTab(this,'calendar')"><i class="fas fa-calendar"></i><span>Календарь</span></div>
+                <div class="sidebar-tab" onclick="switchTab(this,'profile')"><i class="fas fa-chart-area"></i><span>Профиль</span></div>
+                <div class="sidebar-tab" onclick="switchTab(this,'ranking')"><i class="fas fa-trophy"></i><span>Рейтинг</span></div>
+                <div class="sidebar-tab" onclick="switchTab(this,'export')"><i class="fas fa-download"></i><span>Экспорт</span></div>
+            </div>
+            <div class="sidebar-content">
+                <div class="tab-panel active" id="tab-beaches">
+                    <div class="card">
+                        <div class="card-title"><i class="fas fa-search"></i> Поиск</div>
+                        <input class="search-box" placeholder="Название пляжа..." oninput="filterBeaches(this.value)">
+                    </div>
+                    <div class="beach-list" id="beachList"></div>
+                </div>
+                <div class="tab-panel" id="tab-layers">
+                    <div class="card">
+                        <div class="card-title"><i class="fas fa-satellite"></i> Спутник</div>
+                        <div class="layer-toggle"><input type="checkbox" id="layerSat" checked onchange="toggleLayer('satellite')"><label for="layerSat">GHRSST SST (20.09.2021)</label></div>
+                        <div style="font-size:10px;color:var(--text3)">~1 км, skin SST</div>
+                    </div>
+                    <div class="card">
+                        <div class="card-title"><i class="fas fa-cube"></i> 3D модель</div>
+                        <div class="layer-toggle"><input type="checkbox" id="layer3d" onchange="toggleLayer('model3d')"><label for="layer3d">BAMS 1km (поверхность)</label></div>
+                    </div>
+                    <div class="card">
+                        <div class="card-title"><i class="fas fa-water"></i> BAMS daily</div>
+                        <div class="layer-toggle"><input type="checkbox" id="layerDaily" onchange="toggleLayer('daily')"><label for="layerDaily">Температура</label></div>
+                        <div style="font-size:11px;color:var(--text2);margin-top:6px">Глубина:</div>
+                        <div class="depth-ctrl">
+                            <input type="range" id="depthSliderDaily" min="0" max="34" value="0" oninput="updateDepth('daily',this.value)">
+                            <span class="val" id="depthLabelDaily">1.3 м</span>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-title"><i class="fas fa-database"></i> Файлы</div>
+                        <div id="loadedNcList"></div>
+                    </div>
+                </div>
+                <div class="tab-panel" id="tab-calendar">
+                    <div class="card">
+                        <div class="card-title"><i class="fas fa-calendar-alt"></i> Календарь</div>
+                        <div class="cal-nav"><button onclick="calNav(-1)">‹</button><span id="calMonth"></span><button onclick="calNav(1)">›</button></div>
+                        <div class="cal-grid" id="calendarGrid"></div>
+                    </div>
+                </div>
+                <div class="tab-panel" id="tab-profile">
+                    <div class="card">
+                        <div class="card-title"><i class="fas fa-chart-area"></i> Вертикальный профиль</div>
+                        <select class="compare-select" id="profileSource" onchange="updateProfile()">
+                            <option value="3d">BAMS 1km (3D модель)</option>
+                            <option value="daily">BAMS daily</option>
+                        </select>
+                        <div style="height:240px;width:100%;margin-top:8px" id="profileChart"></div>
+                    </div>
+                    <div class="card">
+                        <div class="card-title"><i class="fas fa-code-compare"></i> Сравнение двух точек</div>
+                        <select class="compare-select" id="compareDepth1" onchange="updateDepthCompare()" style="margin-bottom:6px"></select>
+                        <select class="compare-select" id="compareDepth2" onchange="updateDepthCompare()"></select>
+                        <div style="height:240px;width:100%;margin-top:8px" id="depthCompareChart"></div>
+                    </div>
+                </div>
+                <div class="tab-panel" id="tab-ranking">
+                    <div class="card">
+                        <div class="card-title"><i class="fas fa-pen"></i> Оценить пляж</div>
+                        <div id="reviewFormBeach" style="font-size:11px;color:var(--text2);margin-bottom:4px">Выберите пляж</div>
+                        <div class="star-pick" id="starPick"></div>
+                        <textarea class="inp" id="reviewText" placeholder="Комментарий..."></textarea>
+                        <button class="btn btn-accent" style="margin-top:6px" onclick="submitReview()"><i class="fas fa-paper-plane"></i> Отправить</button>
+                    </div>
+                    <div class="card">
+                        <div class="card-title"><i class="fas fa-trophy"></i> Рейтинг по отзывам</div>
+                        <div id="rankingList"></div>
+                    </div>
+                </div>
+                <div class="tab-panel" id="tab-export">
+                    <div class="card">
+                        <div class="card-title"><i class="fas fa-download"></i> Экспорт данных</div>
+                        <button class="export-btn" onclick="exportCSV()"><i class="fas fa-file-csv"></i> Скачать CSV (исторические данные)</button>
+                        <button class="export-btn" onclick="exportJSON()"><i class="fas fa-file-code"></i> Скачать JSON (все данные)</button>
+                        <button class="export-btn" onclick="exportSeasonal()"><i class="fas fa-chart-bar"></i> Скачать сезонную статистику</button>
+                    </div>
+                    <div class="card">
+                        <div class="card-title"><i class="fas fa-chart-pie"></i> Сезонная статистика</div>
+                        <div style="height:200px;width:100%" id="seasonalChart"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="map-area">
+            <div class="layer-info-bar" id="layerInfoBar"><b>Загрузка...</b></div>
+            <div class="map-layer-bar">
+                <button class="on" onclick="quickLayer('satellite')" id="lSat"><i class="fas fa-satellite"></i> Спутник</button>
+                <button onclick="quickLayer('model3d')" id="l3d"><i class="fas fa-cube"></i> 3D</button>
+                <button onclick="quickLayer('daily')" id="lDaily"><i class="fas fa-water"></i> Daily</button>
+            </div>
+            <div class="map-tools" style="position:absolute;top:10px;right:10px;z-index:50;display:flex;gap:4px;flex-direction:column">
+                <button onclick="toggleSidebar()" style="background:var(--glass);backdrop-filter:blur(8px);border:1px solid var(--border);color:var(--text2);width:40px;height:40px;border-radius:6px;cursor:pointer;font-size:14px" title="Панель"><i class="fas fa-bars"></i></button>
+                <button onclick="toggleRoute()" id="routeBtn" style="background:var(--glass);backdrop-filter:blur(8px);border:1px solid var(--border);color:var(--text2);width:40px;height:40px;border-radius:6px;cursor:pointer;font-size:14px" title="Маршрут"><i class="fas fa-route"></i></button>
+            </div>
+            <div id="map"></div>
+            <div class="floating-temp">
+                <div class="big" id="currentTemp">--</div>
+                <div class="sm">°C <span id="currentBeachName"></span></div>
+            </div>
+            <div class="legend-bar">
+                <span><span class="sq" style="background:#2196F3"></span>&lt;12°</span>
+                <span><span class="sq" style="background:#4CAF50"></span>12-16°</span>
+                <span><span class="sq" style="background:#eab308"></span>16-20°</span>
+                <span><span class="sq" style="background:#FF9800"></span>20-24°</span>
+                <span><span class="sq" style="background:#F44336"></span>&gt;24°</span>
+            </div>
+            <div class="graph-panel" id="graphPanel">
+                <div class="graph-panel-header" onclick="toggleGraphPanel()">
+                    <h4 id="graphPanelTitle">Временной ряд</h4>
+                    <div style="display:flex;gap:4px;align-items:center">
+                        <button class="export-btn btn-sm" onclick="event.stopPropagation();exportChart('temperatureGraph','png')" style="margin:0;padding:4px 8px">PNG</button>
+                        <button class="graph-panel-close" onclick="event.stopPropagation();toggleGraphPanel()">&times;</button>
+                    </div>
+                </div>
+                <div id="temperatureGraph"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal" id="forecastModal" onclick="if(event.target===this)closeModal('forecastModal')">
+    <div class="modal-body"><button class="modal-close" onclick="closeModal('forecastModal')"><i class="fas fa-xmark"></i></button>
+        <div class="modal-title" id="forecastTitle">Прогноз</div>
+        <div class="modal-chart" id="forecastChart"></div>
+    </div>
+</div>
+<div class="modal" id="statsModal" onclick="if(event.target===this)closeModal('statsModal')">
+    <div class="modal-body"><button class="modal-close" onclick="closeModal('statsModal')"><i class="fas fa-xmark"></i></button>
+        <div class="modal-title">Статистика по пляжам</div>
+        <div id="statsTable" style="overflow-x:auto"></div>
+        <div class="modal-chart" id="statsChart" style="height:300px;margin-top:12px"></div>
+    </div>
+</div>
+<div class="modal" id="compareModal" onclick="if(event.target===this)closeModal('compareModal')">
+    <div class="modal-body"><button class="modal-close" onclick="closeModal('compareModal')"><i class="fas fa-xmark"></i></button>
+        <div class="modal-title">Сравнение пляжей</div>
+        <div class="compare-grid">
+            <select class="compare-select" id="compareBeach1" onchange="updateCompare()"></select>
+            <select class="compare-select" id="compareBeach2" onchange="updateCompare()"></select>
+        </div>
+        <div class="modal-chart" id="compareChart"></div>
+    </div>
+</div>
+<div class="modal" id="descModal" onclick="if(event.target===this)closeModal('descModal')">
+    <div class="modal-body"><button class="modal-close" onclick="closeModal('descModal')"><i class="fas fa-xmark"></i></button><div id="descContent"></div></div>
+</div>
+<div class="modal" id="sourcesModal" onclick="if(event.target===this)closeModal('sourcesModal')">
+    <div class="modal-body"><button class="modal-close" onclick="closeModal('sourcesModal')"><i class="fas fa-xmark"></i></button>
+        <div class="modal-title">Источники данных</div>
+        <div class="src-card"><h4><i class="fas fa-satellite"></i> GHRSST (спутник)</h4><p><b>Skin SST</b> — температура поверхности моря со спутника. ~1 км. Дата: 20.09.2021.</p></div>
+        <div class="src-card"><h4><i class="fas fa-cube"></i> BAMS 1km (3D модель)</h4><p><b>Океанологическая модель</b> МГК. 1 км, 35 уровней. «aa» — поле анализа поверхности.</p></div>
+        <div class="src-card"><h4><i class="fas fa-water"></i> BAMS daily</h4><p>thetao (температура), so (солёность), uo/vo (течения) на 35 глубинах. ~2.4 км.</p></div>
+        <div class="src-card"><h4><i class="fas fa-file-alt"></i> Reynolds SST (.dat)</h4><p>12 541 записей, 1981–2016.</p></div>
+        <div class="src-card"><h4><i class="fas fa-flask"></i> Полевые измерения — бухта Омега</h4><p><b>17.06.2026</b>, прибор ТМА-21. 13 станций в бухте Круглая (Севастополь). Контактные измерения T и S — не модель и не демо.</p></div>
+    </div>
+</div>
+
+<div class="modal" id="omegaModal" onclick="if(event.target===this)closeOmegaBay()">
+    <div class="modal-body" style="max-width:1100px">
+        <button class="modal-close" onclick="closeOmegaBay()"><i class="fas fa-xmark"></i></button>
+        <div class="modal-title"><i class="fas fa-flask"></i> Бухта Круглая (Омега) — полевые измерения</div>
+        <span class="omega-field-tag"><i class="fas fa-check-circle"></i> Полевые измерения 17.06.2026 · прибор ТМА-21 · не модель и не демо</span>
+        <p style="font-size:11px;color:var(--text2);line-height:1.6;margin-bottom:10px">Учебная экспедиция в бухту Круглая (г. Севастополь). Измерения температуры и солёности контактным методом на 13 станциях. Начальник экспедиции — Лелеко Николай, оператор — Алексей, секретарь — Алексей Дёмин.</p>
+        <div id="omegaBayMap"></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;flex-wrap:wrap;gap:6px">
+            <div style="font-size:10px;color:var(--text3)">Подписи: номер станции · T поверхностного слоя · изолинии 21–25 °C</div>
+            <label style="font-size:11px;color:var(--text2);display:flex;align-items:center;gap:5px;cursor:pointer"><input type="checkbox" id="omegaIsolinesToggle" checked onchange="toggleOmegaIsolines()"> Изолинии температуры</label>
+        </div>
+        <div class="omega-station-list" id="omegaStationList"></div>
+    </div>
+</div>
+<div class="modal" id="modal3d" onclick="if(event.target===this)close3D()" style="z-index:20000">
+    <div class="modal-body" style="width:95%;max-width:1400px;height:90vh;padding:10px;display:flex;flex-direction:column">
+        <button class="modal-close" onclick="close3D()"><i class="fas fa-xmark"></i></button>
+        <div class="modal-title" style="margin-bottom:6px">3D — Температура Чёрного моря</div>
+        <div style="display:flex;gap:10px;align-items:center;margin-bottom:6px;flex-wrap:wrap">
+            <label style="font-size:11px;color:var(--text2)">Источник:</label>
+            <select class="compare-select" id="src3d" onchange="update3D()" style="width:auto;padding:4px 8px;font-size:11px">
+                <option value="daily">BAMS daily</option>
+                <option value="3d">BAMS 1km</option>
+            </select>
+            <label style="font-size:11px;color:var(--text2)">Глубина:</label>
+            <input type="range" id="depthSlider3d" min="0" max="34" value="0" oninput="update3DDepth(+this.value)" style="flex:1;min-width:150px;accent-color:var(--accent)">
+            <span id="depthLabel3d" style="font-size:11px;font-family:'Courier New',monospace;color:var(--text2);min-width:60px">0 м</span>
+            <label style="font-size:11px;color:var(--text2)">Масштаб Z:</label>
+            <input type="range" id="zScale3d" min="1" max="20" value="8" oninput="update3DZScale(+this.value)" style="width:100px;accent-color:var(--warm)">
+        </div>
+        <div id="container3d" style="flex:1;background:#0a0e1a;border-radius:10px;overflow:hidden;position:relative">
+            <canvas id="canvas3d"></canvas>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:6px;font-size:10px;color:var(--text3);align-items:center">
+            <span>Мышь: вращение</span><span>Колесо: приближение</span>
+            <span style="margin-left:auto"><span class="sq" style="background:#2196F3"></span>&lt;12°</span>
+            <span><span class="sq" style="background:#4CAF50"></span>12-16°</span>
+            <span><span class="sq" style="background:#eab308"></span>16-20°</span>
+            <span><span class="sq" style="background:#FF9800"></span>20-24°</span>
+            <span><span class="sq" style="background:#F44336"></span>&gt;24°</span>
+        </div>
+    </div>
+</div>
+
+<div class="waves"><svg viewBox="0 0 1440 40" preserveAspectRatio="none"><path d="M0,20 C180,35 360,5 540,20 C720,35 900,5 1080,20 C1260,35 1440,5 1440,20 L1440,40 L0,40 Z" fill="rgba(0,182,212,.3)"/><path d="M0,25 C160,10 320,40 480,25 C640,10 800,40 960,25 C1120,10 1280,40 1440,25 L1440,40 L0,40 Z" fill="rgba(0,182,212,.15)" style="animation:wave 12s linear infinite reverse"/></svg></div>
+
+<!-- Подключение модулей -->
+<script src="js/state.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/data-loader.js"></script>
+<script src="js/beaches.js"></script>
+<script src="js/map.js"></script>
+<script src="js/charts.js"></script>
+<script src="js/three.js"></script>
+
+<script>
+// Инициализация приложения
+window.addEventListener('load', async ()=>{
+    try{
+        await loadCoreData();
+        await loadOmegaData();
+    }catch(e){
+        console.error('Ошибка загрузки данных:', e);
+        document.body.innerHTML=`<div style="padding:24px;font-family:'Segoe UI',system-ui,sans-serif;background:#0b1628;color:#e0e6f0;min-height:100vh"><h2 style="margin-bottom:12px;color:#ff6b35">Не удалось загрузить данные проекта</h2><p style="line-height:1.6">Откройте проект через локальный веб-сервер или хостинг, чтобы браузер мог загрузить файлы <code>data/*.json</code> через <code>fetch()</code>.</p><pre style="white-space:pre-wrap;background:#111d35;border:1px solid #1e3050;padding:12px;border-radius:10px;margin-top:14px">${String(e)}</pre></div>`;
+        return;
+    }
+    buildBeachList();buildCompareSelects();buildDepthCompareSelects();initMap();loadDemo();initCalendar();renderLoadedNc();renderRanking();updateLayerInfo();updateAllTemps();
+    const current=BEACHES.find(b=>b.id===S.currentBeach);
+    if(current){
+        const beachName=document.getElementById('currentBeachName');
+        const reviewBeach=document.getElementById('reviewFormBeach');
+        if(beachName)beachName.textContent=current.name;
+        if(reviewBeach)reviewBeach.textContent=current.name;
+    }
+    // На мобильных панель скрыта по умолчанию
+    if(window.innerWidth<=900){document.getElementById('sidebar').classList.remove('open')}
+    const sp=document.getElementById('starPick');
+    if(sp)sp.innerHTML=[1,2,3,4,5].map(i=>`<i class="fas fa-star" onclick="pickStar(${i})"></i>`).join('');
+    if(localStorage.getItem('bs_theme')==='light'){document.body.classList.add('light');document.getElementById('themeBtn').innerHTML='<i class="fas fa-circle-half-stroke"></i> Тема'}
+});
+
+function toggleSidebar() {
+    const sb = document.getElementById('sidebar');
+    if (window.innerWidth <= 900) {
+        sb.classList.toggle('open'); // Для мобильных
+    } else {
+        sb.classList.toggle('hidden'); // Для десктопа
+    }
+}
+
+// Глобальные функции для onclick
+window.selectBeach=selectBeach;window.showForecast=showForecast;window.showDesc=showDesc;
+window.closeModal=closeModal;window.pickStar=pickStar;window.submitReview=submitReview;
+window.filterBeaches=filterBeaches;window.toggleLayer=toggleLayer;window.updateDepth=updateDepth;
+window.calNav=calNav;window.updateProfile=updateProfile;window.updateDepthCompare=updateDepthCompare;
+window.updateCompare=updateCompare;window.showCompare=showCompare;window.showStatsTable=showStatsTable;
+window.exportCSV=exportCSV;window.exportJSON=exportJSON;window.exportSeasonal=exportSeasonal;
+window.exportChart=exportChart;window.toggleGraphPanel=toggleGraphPanel;
+window.quickLayer=quickLayer;window.toggleRoute=toggleRoute;
+window.open3D=open3D;window.close3D=close3D;window.update3D=update3D;
+window.update3DDepth=update3DDepth;window.update3DZScale=update3DZScale;
+window.showOmegaBay=showOmegaBay;window.closeOmegaBay=closeOmegaBay;window.toggleOmegaIsolines=toggleOmegaIsolines;
+window.switchTab=switchTab;window.toggleSidebar=toggleSidebar;window.toggleTheme=toggleTheme;window.showSources=showSources;
+</script>
+</body>
+</html>
