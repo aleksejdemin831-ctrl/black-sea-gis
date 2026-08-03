@@ -300,7 +300,7 @@ function loadDemo() {
         { temp: 13.5, year: 1982, month: 12, day: 1 }, { temp: 11.0, year: 1982, month: 12, day: 31 }
     ];
     if (NC_DATA.dat_records?.length > 0) S.tempData = [...S.tempData, ...NC_DATA.dat_records].sort((a, b) => a.year - b.year || a.month - b.month || a.day - b.day);
-    const badge = document.getElementById('dataModeBadge');
+        const badge = document.getElementById('dataModeBadge');
     if (badge) { badge.textContent = 'График: демо (1981–2016) · Слои: модель'; badge.className = 'data-mode-badge demo'; }
     buildBeachList();
     updateAllTemps();
